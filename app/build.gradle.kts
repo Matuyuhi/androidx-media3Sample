@@ -1,6 +1,10 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlinx.serialization)
+    id("kotlin-kapt")
+    alias(libs.plugins.hiltGradlePlugin)
 }
 
 android {
@@ -35,12 +39,34 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    buildFeatures {
+        compose = true
+    }
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
+    val composeBom = platform("androidx.compose:compose-bom:2025.10.01")
+    implementation(composeBom)
+    testImplementation(composeBom)
+    androidTestImplementation(composeBom)
+//
+    implementation("androidx.core:core-ktx")
+    implementation("androidx.activity:activity-compose:1.8.1")
+    implementation("androidx.compose.runtime:runtime")
+    implementation("androidx.compose.material:material")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.foundation:foundation")
+    implementation(libs.hilt.android)
+    implementation(libs.androidx.media3.session)
+    implementation("androidx.media3:media3-ui:1.8.0")
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.media3:media3-exoplayer-hls:1.8.0")
+    implementation("androidx.media3:media3-datasource:1.8.0")
+    implementation("androidx.media3:media3-datasource-okhttp:1.8.0")
+    implementation(libs.kotlinSerializationJson)
+    implementation(libs.kotlinxCoroutinesCore)
+    implementation(libs.kotlinxCoroutinesGuave)
+    kapt(libs.hilt.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

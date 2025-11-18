@@ -19,3 +19,14 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# Media3
+-keep class androidx.media3.** { *; }
+-keep interface androidx.media3.** { *; }
+
+# Hilt
+-keep class dagger.hilt.** { *; }
+-keep class javax.inject.** { *; }
+
+# Serialization
+-keepattributes *Annotation*, InnerClasses
+-keep class kotlinx.serialization.** { *; }
