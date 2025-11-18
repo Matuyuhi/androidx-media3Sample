@@ -73,7 +73,7 @@ fun PlaybackHistorySheet(
                                 mediaItem = item,
                                 timestamp = entry.timestamp,
                                 playDurationMs = entry.playDurationMs,
-                                completionReason = entry.completionReason
+                                completionReason = entry.completionReason.toString()
                             )
                         }
                     }
