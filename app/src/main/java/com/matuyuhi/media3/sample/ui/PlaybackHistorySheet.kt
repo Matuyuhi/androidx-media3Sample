@@ -79,12 +79,29 @@ fun PlaybackHistorySheet(
                     }
                 }
 
-                // 統合リスト
+                // 統合リスト（時系列順：過去→現在→未来）
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    // セクション: 再生履歴（過去）
+                    if (historyItems.isNotEmpty()) {
+                        item {
+                            SectionHeader(
+                                icon = Icons.Default.History,
+                                title = "再生履歴"
+                            )
+                        }
+                        items(historyItems) { historyData ->
+                            HistoryMediaItemCard(
+                                historyData = historyData,
+                                onClick = { onMediaItemClick(historyData.mediaItem) }
+                            )
+                        }
+                        item { Spacer(modifier = Modifier.height(8.dp)) }
+                    }
+
                     // セクション: 現在再生中
                     if (currentMediaItem != null) {
                         item {
@@ -104,7 +121,7 @@ fun PlaybackHistorySheet(
                         item { Spacer(modifier = Modifier.height(8.dp)) }
                     }
 
-                    // セクション: 次に再生
+                    // セクション: 次に再生（未来）
                     if (upcomingQueue.isNotEmpty()) {
                         item {
                             SectionHeader(
@@ -118,23 +135,6 @@ fun PlaybackHistorySheet(
                                 subtitle = "キューに追加済み",
                                 isCurrentlyPlaying = false,
                                 onClick = { onMediaItemClick(mediaItem) }
-                            )
-                        }
-                        item { Spacer(modifier = Modifier.height(8.dp)) }
-                    }
-
-                    // セクション: 再生履歴
-                    if (historyItems.isNotEmpty()) {
-                        item {
-                            SectionHeader(
-                                icon = Icons.Default.History,
-                                title = "再生履歴"
-                            )
-                        }
-                        items(historyItems) { historyData ->
-                            HistoryMediaItemCard(
-                                historyData = historyData,
-                                onClick = { onMediaItemClick(historyData.mediaItem) }
                             )
                         }
                     }
