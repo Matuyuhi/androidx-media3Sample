@@ -57,8 +57,19 @@ class SessionCallback @Inject constructor(
         mediaItems: MutableList<MediaItem>
     ): ListenableFuture<MutableList<MediaItem>> {
         try {
-            val resolvedItems = mediaItems.map { requestedItem ->
-                mediaCatalog.getMediaItem(requestedItem.mediaId) ?: requestedItem
+            val resolvedItems = mediaItems.mapNotNull { requestedItem ->
+                val resolved = mediaCatalog.getMediaItem(requestedItem.mediaId)
+                if (resolved == null) {
+                    Log.w(TAG, "Media item not found in catalog: ${requestedItem.mediaId}")
+                    // URIが設定されている場合はそのまま使用
+                    if (requestedItem.localConfiguration?.uri != null) {
+                        requestedItem
+                    } else {
+                        null
+                    }
+                } else {
+                    resolved
+                }
             }.toMutableList()
 
             Log.d(TAG, "Added ${resolvedItems.size} media items")

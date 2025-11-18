@@ -9,6 +9,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.matuyuhi.media3.sample.data.MediaCatalog
 import com.matuyuhi.media3.sample.data.QueueRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
@@ -19,7 +20,8 @@ import javax.inject.Singleton
 @Singleton
 class PlayerManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val queueRepository: QueueRepository
+    private val queueRepository: QueueRepository,
+    private val mediaCatalog: MediaCatalog
 ) {
     private lateinit var player: ExoPlayer
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -108,10 +110,8 @@ class PlayerManager @Inject constructor(
         val state = queueRepository.loadQueueState() ?: return
 
         withContext(Dispatchers.Main) {
-            val mediaItems = state.mediaIds.map { id ->
-                MediaItem.Builder()
-                    .setMediaId(id)
-                    .build()
+            val mediaItems = state.mediaIds.mapNotNull { id ->
+                mediaCatalog.getMediaItem(id)
             }
 
             if (mediaItems.isNotEmpty()) {
@@ -119,6 +119,9 @@ class PlayerManager @Inject constructor(
                 player.shuffleModeEnabled = state.shuffleEnabled
                 player.repeatMode = state.repeatMode
                 player.prepare()
+                Log.d(TAG, "Queue restored: ${mediaItems.size} items")
+            } else {
+                Log.w(TAG, "No valid media items found in queue state")
             }
         }
     }

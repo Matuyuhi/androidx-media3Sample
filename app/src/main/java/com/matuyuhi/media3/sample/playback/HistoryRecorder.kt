@@ -73,7 +73,14 @@ class HistoryRecorder @Inject constructor(
         totalPlayTime = playbackStats.totalPlayTimeMs
         // durationの更新
         if (totalDuration <= 0 && eventTime.eventPlaybackPositionMs > 0) {
-            totalDuration = eventTime.timeline.getWindow(0, androidx.media3.common.Timeline.Window()).durationMs
+            try {
+                if (!eventTime.timeline.isEmpty) {
+                    val window = androidx.media3.common.Timeline.Window()
+                    totalDuration = eventTime.timeline.getWindow(0, window).durationMs
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to get duration from timeline", e)
+            }
         }
     }
 
