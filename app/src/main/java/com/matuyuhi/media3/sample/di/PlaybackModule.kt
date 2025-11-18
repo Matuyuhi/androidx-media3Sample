@@ -12,6 +12,9 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.room.Room
+import com.matuyuhi.media3.sample.data.db.AppDatabase
+import com.matuyuhi.media3.sample.data.db.HistoryDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -88,5 +91,21 @@ object PlaybackModule {
         }
 
         return notificationManager
+    }
+
+    @Provides
+    @Singleton
+    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
+        return Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            "media_playback_database"
+        ).build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideHistoryDao(database: AppDatabase): HistoryDao {
+        return database.historyDao()
     }
 }

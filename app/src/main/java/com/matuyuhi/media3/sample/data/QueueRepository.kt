@@ -1,6 +1,7 @@
 package com.matuyuhi.media3.sample.data
 
 import android.content.Context
+import android.util.Log
 import androidx.media3.common.Player
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,7 @@ class QueueRepository @Inject constructor(
 ) {
     private val prefs = context.getSharedPreferences("queue_state", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
+    private val TAG = "QueueRepository"
 
     @Serializable
     data class QueueState(
@@ -30,22 +32,35 @@ class QueueRepository @Inject constructor(
     )
 
     suspend fun saveQueueState(state: QueueState) = withContext(Dispatchers.IO) {
-        prefs.edit {
-            putString("queue_state", json.encodeToString(state))
+        try {
+            prefs.edit {
+                putString("queue_state", json.encodeToString(state))
+            }
+            Log.d(TAG, "Queue state saved: ${state.mediaIds.size} items, index: ${state.currentIndex}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save queue state", e)
         }
     }
 
     suspend fun loadQueueState(): QueueState? = withContext(Dispatchers.IO) {
-        prefs.getString("queue_state", null)?.let { jsonStr ->
-            try {
-                json.decodeFromString<QueueState>(jsonStr)
-            } catch (e: Exception) {
-                null
+        try {
+            prefs.getString("queue_state", null)?.let { jsonStr ->
+                val state = json.decodeFromString<QueueState>(jsonStr)
+                Log.d(TAG, "Queue state loaded: ${state.mediaIds.size} items, index: ${state.currentIndex}")
+                state
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load queue state", e)
+            null
         }
     }
 
     suspend fun clearQueueState() = withContext(Dispatchers.IO) {
-        prefs.edit().clear().apply()
+        try {
+            prefs.edit().clear().apply()
+            Log.d(TAG, "Queue state cleared")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear queue state", e)
+        }
     }
 }
