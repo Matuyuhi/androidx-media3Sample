@@ -1,6 +1,7 @@
 package com.matuyuhi.media3.sample.playback
 
 import android.os.Bundle
+import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.session.*
@@ -20,6 +21,7 @@ class SessionCallback @Inject constructor(
 ) : MediaLibraryService.MediaLibrarySession.Callback {
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val TAG = "SessionCallback"
 
     companion object {
         const val COMMAND_ADD_NEXT = "ADD_NEXT"
@@ -54,15 +56,26 @@ class SessionCallback @Inject constructor(
         controller: MediaSession.ControllerInfo,
         mediaItems: MutableList<MediaItem>
     ): ListenableFuture<MutableList<MediaItem>> {
-        val resolvedItems = mediaItems.map { requestedItem ->
-            mediaCatalog.getMediaItem(requestedItem.mediaId) ?: requestedItem
-        }.toMutableList()
+        try {
+            val resolvedItems = mediaItems.map { requestedItem ->
+                mediaCatalog.getMediaItem(requestedItem.mediaId) ?: requestedItem
+            }.toMutableList()
 
-        scope.launch {
-            playerManager.saveQueueState()
+            Log.d(TAG, "Added ${resolvedItems.size} media items")
+
+            scope.launch {
+                try {
+                    playerManager.saveQueueState()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to save queue state after adding items", e)
+                }
+            }
+
+            return Futures.immediateFuture(resolvedItems)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error adding media items", e)
+            return Futures.immediateFuture(mutableListOf())
         }
-
-        return Futures.immediateFuture(resolvedItems)
     }
 
     override fun onCustomCommand(

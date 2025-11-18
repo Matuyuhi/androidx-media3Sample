@@ -2,6 +2,7 @@ package com.matuyuhi.media3.sample.playback
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.util.Log
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.*
@@ -22,6 +23,7 @@ class PlaybackService : MediaLibraryService() {
 
     private var mediaSession: MediaLibrarySession? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val TAG = "PlaybackService"
 
     override fun onCreate() {
         super.onCreate()
@@ -65,6 +67,11 @@ class PlaybackService : MediaLibraryService() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.d(TAG, "onTaskRemoved called")
+
+        // 現在の履歴を保存
+        historyRecorder.forceRecordCurrentItem()
+
         val player = mediaSession?.player
         if (player?.playWhenReady == false || player?.mediaItemCount == 0) {
             stopSelf()
@@ -72,12 +79,26 @@ class PlaybackService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        Log.d(TAG, "onDestroy called")
+
+        // クリーンアップ処理
+        try {
+            historyRecorder.cleanup()
+            playerManager.cleanup()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during cleanup", e)
+        }
+
+        // Coroutine scopeをキャンセル
         scope.cancel()
+
+        // MediaSessionとPlayerをリリース
         mediaSession?.run {
             player.release()
             release()
             mediaSession = null
         }
+
         super.onDestroy()
     }
 }

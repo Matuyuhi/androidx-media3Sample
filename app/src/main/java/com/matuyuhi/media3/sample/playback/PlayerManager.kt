@@ -3,6 +3,7 @@ package com.matuyuhi.media3.sample.playback
 import android.content.Context
 import android.media.AudioDeviceCallback
 import android.media.AudioManager
+import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -22,6 +23,7 @@ class PlayerManager @Inject constructor(
 ) {
     private lateinit var player: ExoPlayer
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val TAG = "PlayerManager"
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -144,6 +146,23 @@ class PlayerManager @Inject constructor(
         saveJob = scope.launch {
             delay(1000) // デバウンス
             saveQueueState()
+        }
+    }
+
+    /**
+     * クリーンアップ: 最終状態を保存してCoroutine scopeをキャンセル
+     */
+    fun cleanup() {
+        Log.d(TAG, "Cleaning up PlayerManager")
+        try {
+            // 最終状態を保存
+            runBlocking {
+                saveQueueState()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save queue state during cleanup", e)
+        } finally {
+            scope.cancel()
         }
     }
 }

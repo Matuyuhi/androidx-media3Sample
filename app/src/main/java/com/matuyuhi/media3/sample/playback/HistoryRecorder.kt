@@ -1,5 +1,6 @@
 package com.matuyuhi.media3.sample.playback
 
+import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -17,9 +18,17 @@ class HistoryRecorder @Inject constructor(
     private val historyRepository: HistoryRepository
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val TAG = "HistoryRecorder"
+
     private var currentMediaId: String? = null
     private var sessionStartTime: Long = 0
     private var totalPlayTime: Long = 0
+    private var totalDuration: Long = 0
+
+    companion object {
+        private const val MIN_PLAY_DURATION_MS = 15_000L // 15秒
+        private const val MIN_COMPLETION_RATIO = 0.3f // 30%
+    }
 
     fun attachToPlayer(player: ExoPlayer) {
         val statsListener = PlaybackStatsListener(true) { eventTime, playbackStats ->
@@ -45,10 +54,13 @@ class HistoryRecorder @Inject constructor(
                     currentMediaId = it.mediaId
                     sessionStartTime = System.currentTimeMillis()
                     totalPlayTime = 0
+                    totalDuration = player.duration.takeIf { dur -> dur > 0 } ?: 0
+                    Log.d(TAG, "Started tracking: ${it.mediaId}, duration: ${totalDuration}ms")
                 }
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                Log.e(TAG, "Player error occurred", error)
                 recordCurrentItem(HistoryRepository.CompletionReason.ERROR)
             }
         })
@@ -59,27 +71,79 @@ class HistoryRecorder @Inject constructor(
         playbackStats: PlaybackStats
     ) {
         totalPlayTime = playbackStats.totalPlayTimeMs
+        // durationの更新
+        if (totalDuration <= 0 && eventTime.eventPlaybackPositionMs > 0) {
+            totalDuration = eventTime.timeline.getWindow(0, androidx.media3.common.Timeline.Window()).durationMs
+        }
+    }
+
+    private fun shouldRecord(
+        playDuration: Long,
+        totalDuration: Long,
+        reason: HistoryRepository.CompletionReason
+    ): Boolean {
+        return when {
+            // 完走した場合は必ず記録
+            reason == HistoryRepository.CompletionReason.COMPLETED -> true
+
+            // 15秒以上再生した場合は記録
+            playDuration >= MIN_PLAY_DURATION_MS -> true
+
+            // 総再生時間の30%以上再生した場合は記録（短い曲対応）
+            totalDuration > 0 && (playDuration.toFloat() / totalDuration) >= MIN_COMPLETION_RATIO -> {
+                Log.d(TAG, "Recording based on completion ratio: ${playDuration.toFloat() / totalDuration}")
+                true
+            }
+
+            else -> {
+                Log.d(TAG, "Not recording: duration=${playDuration}ms, total=${totalDuration}ms, reason=$reason")
+                false
+            }
+        }
     }
 
     private fun recordCurrentItem(reason: HistoryRepository.CompletionReason) {
         val mediaId = currentMediaId ?: return
         val playDuration = totalPlayTime
 
-        // 15秒以上再生 or 完走で記録
-        if (playDuration >= 15000 || reason == HistoryRepository.CompletionReason.COMPLETED) {
+        if (shouldRecord(playDuration, totalDuration, reason)) {
             scope.launch {
-                historyRepository.addEntry(
-                    HistoryRepository.HistoryEntry(
-                        mediaId = mediaId,
-                        timestamp = sessionStartTime,
-                        playDurationMs = playDuration,
-                        completionReason = reason
+                try {
+                    historyRepository.addEntry(
+                        HistoryRepository.HistoryEntry(
+                            mediaId = mediaId,
+                            timestamp = sessionStartTime,
+                            playDurationMs = playDuration,
+                            completionReason = reason,
+                            totalDurationMs = totalDuration
+                        )
                     )
-                )
+                    Log.d(TAG, "Recorded history: $mediaId, ${playDuration}ms, $reason")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to record history", e)
+                }
             }
         }
 
         currentMediaId = null
         totalPlayTime = 0
+        totalDuration = 0
+    }
+
+    /**
+     * アプリ終了時など、現在再生中のアイテムを強制的に記録する
+     */
+    fun forceRecordCurrentItem() {
+        Log.d(TAG, "Force recording current item")
+        recordCurrentItem(HistoryRepository.CompletionReason.SKIPPED)
+    }
+
+    /**
+     * クリーンアップ: Coroutine scopeをキャンセル
+     */
+    fun cleanup() {
+        Log.d(TAG, "Cleaning up HistoryRecorder")
+        forceRecordCurrentItem()
+        scope.cancel()
     }
 }
